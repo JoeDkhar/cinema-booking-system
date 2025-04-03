@@ -96,4 +96,6 @@ type User struct {
 	Username     string `json:"username" gorm:"unique"`
 	Email        string `json:"email" gorm:"unique"`
 	PasswordHash string `json:"-"`
+	SessionToken string `json:"-"`
+	IsAdmin      bool   `json:"is_admin" gorm:"default:false"`
 }

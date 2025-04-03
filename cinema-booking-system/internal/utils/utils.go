@@ -41,3 +41,10 @@ func ValidateEmail(email string) bool {
 	match, _ := regexp.MatchString(pattern, email)
 	return match
 }
+
+// GenerateSessionToken creates a unique session token
+func GenerateSessionToken() string {
+	bytes := make([]byte, 16)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}

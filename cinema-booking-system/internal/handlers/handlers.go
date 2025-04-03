@@ -8,8 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/JoeDkhar/cinema-booking-system/internal/cache"
 	"github.com/JoeDkhar/cinema-booking-system/internal/database"
 	"github.com/JoeDkhar/cinema-booking-system/internal/models"
+	"github.com/JoeDkhar/cinema-booking-system/internal/utils"
 	"github.com/gorilla/mux"
 )
 
@@ -19,11 +21,27 @@ var (
 	showMutexes = make(map[uint]*sync.Mutex)
 	// Global mutex to protect the showMutexes map
 	globalMutex sync.Mutex
+
+	// Generic caches for movies and shows using Go generics
+	movieCache = cache.NewCache[models.Movie]()
+	showCache  = cache.NewCache[models.Show]()
 )
 
 // Initialize loads templates and sets up handlers
 func Initialize() {
-	templates = template.Must(template.ParseGlob("templates/*.html"))
+	// Define template functions
+	funcMap := template.FuncMap{
+		"currentYear": func() int {
+			return time.Now().Year()
+		},
+		"formatCurrency": utils.FormatCurrency,
+		"formatDateTime": utils.FormatDateTime,
+		"formatDate":     utils.FormatDate,
+		"formatTime":     utils.FormatTime,
+	}
+
+	// Parse templates with functions
+	templates = template.Must(template.New("").Funcs(funcMap).ParseGlob("templates/*.html"))
 }
 
 // getShowMutex returns a mutex for a specific show
@@ -74,10 +92,19 @@ func MovieDetailHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var movie models.Movie
-	if err := database.DB.Preload("Shows").First(&movie, id).Error; err != nil {
-		http.Error(w, "Movie not found", http.StatusNotFound)
-		return
+	// Try to get movie from cache first
+	cacheKey := "movie_" + vars["id"]
+	movie, found := movieCache.Get(cacheKey)
+
+	if !found {
+		// If not in cache, get from database
+		if err := database.DB.Preload("Shows").First(&movie, id).Error; err != nil {
+			http.Error(w, "Movie not found", http.StatusNotFound)
+			return
+		}
+
+		// Store in cache for 10 minutes
+		movieCache.Set(cacheKey, movie, 10*time.Minute)
 	}
 
 	data := struct {
@@ -171,59 +198,32 @@ func BookingHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get show details
-	var show models.Show
-	if err := database.DB.First(&show, showID).Error; err != nil {
-		http.Error(w, "Show not found", http.StatusNotFound)
-		return
-	}
+	// Create a channel for the booking response
+	responseChan := make(chan BookingResponse)
 
-	// Lock the show to prevent double bookings
-	mutex := getShowMutex(uint(showID))
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	// Check if seats are already booked
-	var existingBookings []models.Booking
-	database.DB.Where("show_id = ? AND confirmed = ?", showID, true).Find(&existingBookings)
-
-	// Create a map of already booked seats
-	bookedSeats := make(map[string]bool)
-	for _, booking := range existingBookings {
-		for _, seat := range booking.Seats {
-			key := seat.Row + strconv.Itoa(seat.Number)
-			bookedSeats[key] = true
-		}
-	}
-
-	// Check if any of the selected seats are already booked
-	for _, seat := range seats {
-		key := seat.Row + strconv.Itoa(seat.Number)
-		if bookedSeats[key] {
-			http.Error(w, "Some selected seats are already booked. Please try again.", http.StatusConflict)
-			return
-		}
-	}
-
-	// Create booking
-	booking := models.Booking{
+	// Create a booking request
+	bookingRequest := BookingRequest{
 		ShowID:       uint(showID),
 		CustomerName: customerName,
 		Email:        email,
 		Seats:        seats,
-		BookingTime:  time.Now(),
-		TotalAmount:  float64(len(seats)) * show.TicketPrice,
-		Confirmed:    true,
+		ResponseChan: responseChan,
 	}
 
-	// Save booking to database
-	if err := database.DB.Create(&booking).Error; err != nil {
-		http.Error(w, "Error saving booking: "+err.Error(), http.StatusInternalServerError)
+	// Submit the booking request asynchronously
+	ProcessBookingAsync(bookingRequest)
+
+	// Wait for the response
+	response := <-responseChan
+	close(responseChan)
+
+	if !response.Success {
+		http.Error(w, response.ErrorMessage, http.StatusConflict)
 		return
 	}
 
 	// Redirect to confirmation page
-	http.Redirect(w, r, "/booking/confirmation/"+strconv.Itoa(int(booking.ID)), http.StatusSeeOther)
+	http.Redirect(w, r, "/booking/confirmation/"+strconv.Itoa(int(response.BookingID)), http.StatusSeeOther)
 }
 
 // BookingConfirmationHandler renders the booking confirmation page
