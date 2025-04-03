@@ -1,0 +1,52 @@
+{{template "base.html" .}}
+
+{{define "title"}}Booking Confirmation{{end}}
+
+{{define "content"}}
+<section class="confirmation-section">
+    <div class="confirmation-card">
+        <div class="confirmation-header">
+            <h1>Booking Confirmed!</h1>
+            <div class="booking-id">Booking Reference: BKG-{{.Booking.ID}}</div>
+        </div>
+        
+        <div class="movie-details">
+            <h2>Movie Details</h2>
+            <div class="detail-group">
+                <h3>{{.Booking.Show.Movie.Title}}</h3>
+                <p>{{.Booking.Show.Movie.Genre}} | {{.Booking.Show.Movie.Duration}} minutes</p>
+            </div>
+        </div>
+        
+        <div class="booking-details">
+            <h2>Booking Details</h2>
+            <div class="detail-group">
+                <p><strong>Date:</strong> {{formatDate .Booking.Show.DateTime}}</p>
+                <p><strong>Time:</strong> {{formatTime .Booking.Show.DateTime}}</p>
+                <p><strong>Hall:</strong> {{.Booking.Show.HallNumber}}</p>
+            </div>
+            
+            <div class="detail-group">
+                <p><strong>Seats:</strong> 
+                {{range $i, $seat := .Booking.Seats}}
+                    {{if $i}}, {{end}}{{$seat.Row}}{{$seat.Number}}
+                {{end}}
+                </p>
+                <p><strong>Total Amount:</strong> {{formatCurrency .Booking.TotalAmount}}</p>
+            </div>
+            
+            <div class="detail-group">
+                <p><strong>Customer:</strong> {{.Booking.CustomerName}}</p>
+                <p><strong>Email:</strong> {{.Booking.Email}}</p>
+                <p><strong>Booking Time:</strong> {{formatDateTime .Booking.BookingTime}}</p>
+            </div>
+        </div>
+        
+        <div class="confirmation-footer">
+            <p>Thank you for your booking!</p>
+            <p>A confirmation email has been sent to {{.Booking.Email}}</p>
+            <a href="/" class="btn btn-primary">Return to Home</a>
+        </div>
+    </div>
+</section>
+{{end}}

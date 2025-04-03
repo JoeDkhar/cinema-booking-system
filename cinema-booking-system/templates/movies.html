@@ -1,0 +1,25 @@
+{{template "base.html" .}}
+
+{{define "title"}}CineTickets - Movies{{end}}
+
+{{define "content"}}
+<section>
+    <h1>All Movies</h1>
+    <div class="movie-grid">
+        {{range .Movies}}
+        <div class="movie-card">
+            <div class="movie-poster">
+                <img src="{{.ImageURL}}" alt="{{.Title}} Poster">
+            </div>
+            <div class="movie-info">
+                <h3>{{.Title}}</h3>
+                <div class="movie-genre">{{.Genre}}</div>
+                <div class="movie-duration">{{.Duration}} minutes</div>
+                <p class="movie-description">{{.Description}}</p>
+                <a href="/movies/{{.ID}}" class="btn btn-primary">View Details</a>
+            </div>
+        </div>
+        {{end}}
+    </div>
+</section>
+{{end}}

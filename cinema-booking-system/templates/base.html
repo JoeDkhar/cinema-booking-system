@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{block "title" .}}Cinema Booking System{{end}}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <h1>CineTickets</h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/movies">Movies</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {{block "content" .}}{{end}}
+    </main>
+
+    <footer>
+        <p>&copy; {{currentYear}} CineTickets - Cinema Ticket Booking System</p>
+    </footer>
+
+    <script src="/static/js/script.js"></script>
+    {{block "scripts" .}}{{end}}
+</body>
+</html>
+
+{{define "currentYear"}}{{.Now.Year}}{{end}}
